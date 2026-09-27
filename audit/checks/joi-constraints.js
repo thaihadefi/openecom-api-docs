@@ -23,6 +23,10 @@ const compare = (label, joi, spec, requiredInSpec, problems) => {
     || (joi.type === "boolean" && specType === "boolean") || (joi.type === "array" && specType === "array")
     || (joi.type === "object" && (specType === "object" || !specType));
   if (!typeOk) problems.push(`${at}: Joi ${joi.type} but the specification says ${specType}`);
+  // A oneOf/anyOf field (e.g. a number or "" to clear it) keeps its limits in the branch of the Joi type.
+  const branch = openType && openType.find((option) => option.type === joi.type
+    || (joi.type === "number" && option.type === "integer") || (joi.type === "date" && option.type === "string"));
+  if (branch) spec = { ...spec, ...branch };
   const max = (ruleArgs(joi, "max") || {}).limit;
   const min = (ruleArgs(joi, "min") || {}).limit;
   if (joi.type === "string") {
