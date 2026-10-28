@@ -7,7 +7,7 @@ const only = process.argv[2];
 let failed = 0;
 
 (async () => {
-  console.log(`Ecom source: ${context.ecomDir}\n`);
+  console.log(`OpenEcom source: ${context.ecomDir}\n`);
   for (const file of checks) {
     if (only && !file.startsWith(only)) continue;
     const check = require(path.join(__dirname, "checks", file));

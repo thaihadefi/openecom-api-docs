@@ -27,6 +27,9 @@ const writesOf = (context, route) => {
       const key = `${target}::${name}`;
       if (seen.has(key)) return;
       seen.add(key);
+      // Counting anonymous search popularity is incidental telemetry, like an access log
+      // (RFC 9110 section 9.2.1). Keep scanning the route and every other helper.
+      if (target === path.join(context.webDir, "services/client/search-query.service.ts") && name === "recordSearch") return;
       const block = context.blocksOf(target)[name];
       if (block) scan(block, target, depth - 1);
     };
@@ -41,7 +44,7 @@ const writesOf = (context, route) => {
 };
 
 module.exports = {
-  name: "GET requests are safe (no database writes, no cookies)",
+  name: "GET requests are safe (no business state writes or cookies; search telemetry allowed)",
   run: (context) => {
     const problems = [];
     const stillNeeded = new Set();

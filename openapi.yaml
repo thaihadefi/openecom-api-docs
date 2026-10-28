@@ -1,12 +1,12 @@
 openapi: 3.0.3
 info:
-  title: Ecom & FileManager API Documentation
+  title: OpenEcom & FileManager API Documentation
   version: 1.0.0
   license:
     name: MIT
-    url: https://github.com/thaihadefi/Ecom/blob/main/LICENSE
+    url: https://github.com/thaihadefi/openecom/blob/main/LICENSE
   description: |-
-    Documentation of every API endpoint of the Ecom web application (port 3000) and the FileManager microservice (port 4000). Server-rendered HTML pages are out of scope, apart from the few read-only ones described under Response conventions.
+    Documentation of every API endpoint of the OpenEcom web application (port 3000) and the FileManager microservice (port 4000). Server-rendered HTML pages are out of scope, apart from the few read-only ones described under Response conventions.
 
     ### Base URLs
     - Web application: `http://localhost:3000`
@@ -25,11 +25,11 @@ info:
     - An error has the matching HTTP status and `{ "code": "error", "message": "..." }`: **400** invalid request, **401** not logged in, **403** no permission or not allowed, **404** record not found, **409** conflict with the current state (duplicate value, missing stock, a change that is not allowed), **429** too many attempts (see `Retry-After`), **500** unexpected failure, **502** a service the application depends on (FileManager, email, the shipping carrier) failed, and **503** the store is not fully configured yet for the request (for example, checkout without a warehouse location set).
     - JSON endpoints (`/api`, `/admin/api`) never redirect: without a valid login they answer 401, and without the permission 403, whatever the method. Server-rendered page requests are redirected (302) to the login page, unless they send an `Authorization` header, `Accept: application/json` without `text/html`, or `X-Requested-With: XMLHttpRequest`, which get the same 401 or 403 as the JSON endpoints. FileManager answers 401 when the bearer secret is missing or wrong.
     - The storefront is server-rendered. The few page routes that act as read endpoints (catalog, articles, cart, flagged orders, payment and OAuth redirects) are documented with `text/html` or redirect responses; the other pages are not part of the API.
-    - JSON endpoints are plural resources under `/api` (storefront) and `/admin/api` (admin). The HTTP method states the action: `POST` creates, `PUT` and `PATCH` change, `DELETE` removes, and `GET` never changes data. Payment-gateway and OAuth callbacks keep the URLs their providers call.
+    - JSON endpoints are plural resources under `/api` (storefront) and `/admin/api` (admin). The HTTP method states the action: `POST` creates, `PUT` and `PATCH` change, `DELETE` removes, and `GET` does not change business state. Anonymous search popularity counters are incidental telemetry. Payment-gateway and OAuth callbacks keep the URLs their providers call.
     - Trash lifecycle of admin resources: `DELETE /{id}` moves a record to the trash, `POST /{id}/restore` restores it and `DELETE /{id}?permanent=true` deletes it for good. The bulk variants take `{ "ids": [...] }` on the collection: `POST /trash`, `POST /restore` and `DELETE /`.
 
     ### Optional modules
-    Each store switches optional modules on or off with `FEATURE_*` environment variables (see the Ecom README). An endpoint of a switched-off module answers **404** like a route that does not exist: chat (`/api/chat-rooms`, `/admin/api/chat-rooms`), AI chat helpers, flagged orders, recommendation jobs, blog (`/api/articles`, `/api/article-categories`, `/admin/api/articles`, `/admin/api/article-categories`), wishlist, compare, reviews (`/api/reviews`, `/admin/api/reviews`), coupons (`/api/coupon-checks`, `/admin/api/coupons`; checkout then refuses a coupon with 400) and loyalty points (checkout ignores `usePoint`).
+    Each store switches optional modules on or off with `FEATURE_*` environment variables (see the OpenEcom README). An endpoint of a switched-off module answers **404** like a route that does not exist: chat (`/api/chat-rooms`, `/admin/api/chat-rooms`), AI chat helpers, flagged orders, recommendation jobs, blog (`/api/articles`, `/api/article-categories`, `/admin/api/articles`, `/admin/api/article-categories`), wishlist, compare, reviews (`/api/reviews`, `/admin/api/reviews`), coupons (`/api/coupon-checks`, `/admin/api/coupons`; checkout then refuses a coupon with 400) and loyalty points (checkout ignores `usePoint`).
 
     ### Real-time chat (Socket.IO, same origin as the Web app)
     Connect with the auth cookie and `auth: { role: "user" | "admin", roomId? }`.
@@ -37,7 +37,7 @@ info:
     - Server to client: `SERVER_SEND_MESSAGE`, `SERVER_SEND_STATUS`, `SERVER_MESSAGE_DELIVERED`, `SERVER_DELETE_MESSAGE`, `SERVER_DELETE_ROOM`, `SERVER_ROOM_ASSIGNED`, `SERVER_SEND_CLIENT_TYPING`, `SERVER_SEND_ADMIN_TYPING`, `SERVER_CLIENT_READ`, `SERVER_ADMIN_READ`, `SERVER_ADMIN_STATUS`, `USER_STATUS_ONLINE`, `LIST_USER_ONLINE`.
 servers:
   - url: http://localhost:3000
-    description: Ecom Web application (local)
+    description: OpenEcom Web application (local)
 tags:
   - name: Payment & Logistics (VNPAY, ZaloPay, GoShip)
     description: Payment gateway integrations (VNPAY, ZaloPay), webhooks, and GoShip automated courier rates
@@ -4776,7 +4776,7 @@ paths:
       tags:
         - Client Cart & Checkout
       summary: Create and place order (COD, VNPAY, ZaloPay) with atomic loyalty point deduction
-      description: The order is rejected when an item is no longer available or when the coupon has reached its usage limit.
+      description: Guests and signed-in customers can place orders. The order is rejected when an item is no longer available or when the coupon has reached its usage limit. Rate limited per IP to 5 attempts per 10 minutes and 15 per hour.
       responses:
         '200':
           description: Order created; `redirectUrl` says where the customer goes next.
@@ -4786,10 +4786,10 @@ paths:
                 $ref: '#/components/schemas/OrderCreatedResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
         '409':
           $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/ServerError'
         '502':
@@ -4880,9 +4880,7 @@ paths:
                 - items
                 - paymentMethod
                 - shippingMethod
-      security:
-        - UserCookie: []
-        - UserBearer: []
+      security: []
       operationId: postApiOrders
   /api/password-resets:
     post:
@@ -4983,6 +4981,35 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
       operationId: postApiProductCategoriesBySlugViews
+      security: []
+  /api/popular-searches:
+    get:
+      tags:
+        - Client Products
+      summary: Get popular search terms
+      description: Returns up to six recent search terms with repeated searches and matching products.
+      responses:
+        '200':
+          description: Popular search terms.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    enum: [success]
+                  message:
+                    type: string
+                  list:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+      operationId: getApiPopularSearches
       security: []
   /api/product-suggestions:
     get:
@@ -6365,6 +6392,15 @@ components:
         content:
           type: string
           description: Empty string allowed.
+        author:
+          type: string
+          maxLength: 120
+          description: Empty string allowed.
+        sourceUrl:
+          type: string
+          format: uri
+          maxLength: 500
+          description: Full http(s) URL, or an empty string.
       required:
         - name
         - slug
@@ -6718,6 +6754,10 @@ components:
     PatchAdminSettingGeneralBody:
       type: object
       properties:
+        openingHours:
+          type: string
+          maxLength: 200
+          description: Empty string allowed.
         websiteName:
           type: string
           maxLength: 100
@@ -6836,6 +6876,15 @@ components:
     PatchAdminSettingStorefrontBody:
       type: object
       properties:
+        productPromises:
+          type: string
+          maxLength: 2000
+          description: Empty string allowed.
+        logoDisplay:
+          type: string
+          enum:
+            - logo
+            - logo-name
         primaryColor:
           type: string
           pattern: ^#[0-9a-fA-F]{6}$

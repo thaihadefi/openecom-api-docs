@@ -1,7 +1,7 @@
 const path = require("path");
 const { startEnvironment } = require("./lib/environment");
 
-const ecomDir = path.resolve(process.env.ECOM_DIR || path.join(__dirname, "..", "..", "Ecom"));
+const ecomDir = path.resolve(process.env.OPENECOM_DIR || process.env.ECOM_DIR || path.join(__dirname, "..", "..", "openecom"));
 
 const CASES = (env) => {
   const json = (cookie, body, authorization) => ({ headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}), ...(authorization ? { authorization } : {}) }, body: JSON.stringify(body) });

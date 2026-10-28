@@ -1,4 +1,4 @@
-// Copies the Ecom apps into a temporary directory so a test run can never write into the real checkout
+// Copies the OpenEcom apps into a temporary directory so a test run can never write into the real checkout
 // (uploads land in FileManager/media, generated views in Web/views) and never sees a real .env file.
 const fs = require("fs");
 const os = require("os");
@@ -18,7 +18,7 @@ const copyTree = (from, to, { skip = () => false } = {}) => {
 };
 
 const createSandbox = (ecomDir) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ecom-contract-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "openecom-contract-"));
   const apps = {};
   for (const app of ["Web", "FileManager"]) {
     const source = path.join(ecomDir, app);

@@ -4,7 +4,7 @@ const { spawnSync } = require("child_process");
 const { startEnvironment } = require("./lib/environment");
 
 const root = path.resolve(__dirname, "..");
-const ecomDir = path.resolve(process.env.ECOM_DIR || path.join(root, "..", "Ecom"));
+const ecomDir = path.resolve(process.env.OPENECOM_DIR || process.env.ECOM_DIR || path.join(root, "..", "openecom"));
 const schemathesis = path.join(__dirname, ".venv", "bin", "schemathesis");
 const argument = (name, fallback) => {
   const index = process.argv.indexOf(`--${name}`);

@@ -3,7 +3,7 @@ const path = require("path");
 const yaml = require("js-yaml");
 
 const root = path.resolve(__dirname, "..");
-const ecomDir = path.resolve(process.env.ECOM_DIR || path.join(root, "..", "Ecom"));
+const ecomDir = path.resolve(process.env.OPENECOM_DIR || process.env.ECOM_DIR || path.join(root, "..", "openecom"));
 const webDir = path.join(ecomDir, "Web");
 const fileManagerDir = path.join(ecomDir, "FileManager");
 

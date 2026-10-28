@@ -1,16 +1,16 @@
 {
-  "name": "ecom-api-docs",
+  "name": "openecom-api-docs",
   "version": "1.0.0",
-  "description": "OpenAPI/Swagger docs for the Ecom web app and FileManager microservice",
+  "description": "OpenAPI/Swagger docs for the OpenEcom web app and FileManager microservice",
   "private": true,
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/thaihadefi/ecom-api-docs.git"
+    "url": "git+https://github.com/thaihadefi/openecom-api-docs.git"
   },
-  "homepage": "https://ecom-api-docs.vercel.app",
+  "homepage": "https://openecom-api-docs.vercel.app",
   "bugs": {
-    "url": "https://github.com/thaihadefi/ecom-api-docs/issues"
+    "url": "https://github.com/thaihadefi/openecom-api-docs/issues"
   },
   "engines": {
     "node": ">=18"
@@ -18,7 +18,7 @@
   "scripts": {
     "build": "node scripts/build.js",
     "validate": "node scripts/build.js --validate",
-    "sync-web": "node scripts/build.js --copy-to ../Ecom/Web/public/api-docs",
+    "sync-web": "node scripts/build.js --copy-to ../openecom/Web/public/api-docs",
     "start": "serve . -l 8080",
     "verify": "node audit/run.js",
     "sync-statuses": "node audit/sync-statuses.js",
