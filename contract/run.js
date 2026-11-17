@@ -1,11 +1,11 @@
 const fs = require("fs");
 const path = require("path");
-const { spawnSync } = require("child_process");
+const { spawn } = require("child_process");
 const { startEnvironment } = require("./lib/environment");
 
 const root = path.resolve(__dirname, "..");
 const ecomDir = path.resolve(process.env.OPENECOM_DIR || process.env.ECOM_DIR || path.join(root, "..", "openecom"));
-const schemathesis = path.join(__dirname, ".venv", "bin", "schemathesis");
+const python = path.join(__dirname, ".venv", "bin", "python3");
 const argument = (name, fallback) => {
   const index = process.argv.indexOf(`--${name}`);
   return index === -1 ? fallback : process.argv[index + 1];
@@ -23,21 +23,33 @@ const FILE_MANAGER = "^/(files|folders|media)";
 const EXTERNAL_OR_HEAVY = "^/(admin/api/(chat-rooms/[^/]+/(reply-suggestion|reply-refinements|summary|customer-emotion)|recommendation-jobs|flagged-orders/retraining|cache|admin-accounts(/.*)?|sessions)|api/(cart/quote|orders|sessions|customers|customers/me/(password|addresses.*)|password-resets.*)|order/payment-zalopay.*)";
 const CHECKS = "not_a_server_error,status_code_conformance,content_type_conformance,response_schema_conformance";
 
+let activeRun = null;
+let stopping = false;
+
 const run = (label, url, extra) => {
   console.log(`\n=== ${label} (${url}) ===`);
-  const result = spawnSync(schemathesis, [
-    "run", path.join(root, "openapi.yaml"),
-    "--url", url, "--mode", "positive", "--checks", CHECKS,
-    "--max-examples", examples, "--seed", seed, "--workers", workers, "--no-color",
-    "--request-timeout", timeout, "--continue-on-failure", "--phases", "fuzzing",
-    "--report", "junit", "--report-dir", reportDir, "--report-junit-path", path.join(reportDir, `${label}.xml`),
-    ...extra,
-  ], { stdio: "inherit" });
-  return result.status;
+  return new Promise((resolve, reject) => {
+    const child = spawn(python, [
+      path.join(__dirname, "run-cli.py"),
+      "run", path.join(root, "openapi.yaml"),
+      "--url", url, "--mode", "positive", "--checks", CHECKS,
+      "--generation-with-security-parameters", "false",
+      "--max-examples", examples, "--seed", seed, "--workers", workers, "--no-color",
+      "--request-timeout", timeout, "--continue-on-failure", "--phases", "fuzzing",
+      "--report", "junit", "--report-dir", reportDir, "--report-junit-path", path.join(reportDir, `${label}.xml`),
+      ...extra,
+    ], { stdio: "inherit", cwd: root, env: process.env });
+    activeRun = child;
+    child.once("error", reject);
+    child.once("close", (code) => {
+      activeRun = null;
+      resolve(code ?? 1);
+    });
+  });
 };
 
 (async () => {
-  if (!fs.existsSync(schemathesis)) {
+  if (!fs.existsSync(python)) {
     console.error('Schemathesis is not installed. Run: python3 -m venv contract/.venv && contract/.venv/bin/pip install "schemathesis==4.4.4"');
     process.exit(2);
   }
@@ -45,16 +57,20 @@ const run = (label, url, extra) => {
   const environment = await startEnvironment({ ecomDir });
   for (const signal of ["SIGINT", "SIGTERM"]) {
     process.on(signal, async () => {
+      if (stopping) return;
+      stopping = true;
+      activeRun?.kill("SIGTERM");
       await environment.stop();
       process.exit(130);
     });
   }
   let status = 0;
   try {
-    status |= run("web", environment.webUrl, ["-H", `Cookie: ${environment.cookie}`, "--exclude-path-regex", `${SESSION_ENDING}|${FILE_MANAGER}|${EXTERNAL_OR_HEAVY}`]);
-    status |= run("file-manager", environment.fileManagerUrl, ["-H", `Authorization: Bearer ${environment.fileManagerSecret}`, "--include-path-regex", FILE_MANAGER]);
+    status |= await run("web", environment.webUrl, ["-H", `Cookie: ${environment.cookie}`, "--exclude-path-regex", `${SESSION_ENDING}|${FILE_MANAGER}|${EXTERNAL_OR_HEAVY}`]);
+    if (stopping) return;
+    status |= await run("file-manager", environment.fileManagerUrl, ["-H", `Authorization: Bearer ${environment.fileManagerSecret}`, "--include-path-regex", FILE_MANAGER]);
   } finally {
-    await environment.stop();
+    if (!stopping) await environment.stop();
   }
   process.exit(status ? 1 : 0);
 })().catch((error) => {

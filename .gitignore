@@ -5,3 +5,6 @@ contract/.venv/
 contract/reports/
 contract/.hypothesis/
 .vercel
+
+.hypothesis/
+__pycache__/

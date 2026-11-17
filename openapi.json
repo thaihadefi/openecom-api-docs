@@ -7,12 +7,16 @@
       "name": "MIT",
       "url": "https://github.com/thaihadefi/openecom/blob/main/LICENSE"
     },
-    "description": "Documentation of every API endpoint of the OpenEcom web application (port 3000) and the FileManager microservice (port 4000). Server-rendered HTML pages are out of scope, apart from the few read-only ones described under Response conventions.\n\n### Base URLs\n- Web application: `http://localhost:3000`\n- FileManager microservice: `http://localhost:4000` (operations under `/files` and `/folders` are served only there)\n\n### Authentication\n- **Customer** and **admin** JSON endpoints (`/api`, `/admin/api`) accept either the HTTP-only cookie (`tokenUser`, `tokenAdmin`), which browsers use, or `Authorization: Bearer <accessToken>`, which API clients use. The login endpoints return `accessToken` in the body and set the cookie; a request that carries an `Authorization` header is authenticated by it alone and its cookies are ignored. The token lasts one day (`expiresIn` says how long); there is no refresh for Bearer clients, so log in again on 401.\n- **FileManager** `/files` and `/folders` endpoints use `Authorization: Bearer <FILE_MANAGER_SECRET>`. `/media` is public. Use a random secret of at least 32 characters; repeated wrong secrets from one address are answered with HTTP 429.\n- Admin endpoints also check a permission (shown on each operation). Every admin write is recorded in the admin activity log.\n\n### Trying requests\nThe Web application serves this documentation itself at `/api-docs/`, which is the place to try customer and admin endpoints: log in through the login endpoint (the cookie is then sent automatically), or paste the returned `accessToken` under \"Authorize\". The Web application sends CORS headers on non-admin routes, so the Vercel copy can reach storefront endpoints with a Bearer token; admin endpoints skip CORS on purpose, so try those from this same-origin copy instead. The FileManager bearer endpoints also work from the Vercel copy when FileManager lists its origin in `FILE_MANAGER_CORS_ORIGINS`.\n\n### Response conventions\n- A successful JSON response has HTTP 200 and `{ \"code\": \"success\", \"message\": \"...\", ...data }`.\n- An error has the matching HTTP status and `{ \"code\": \"error\", \"message\": \"...\" }`: **400** invalid request, **401** not logged in, **403** no permission or not allowed, **404** record not found, **409** conflict with the current state (duplicate value, missing stock, a change that is not allowed), **429** too many attempts (see `Retry-After`), **500** unexpected failure, **502** a service the application depends on (FileManager, email, the shipping carrier) failed, and **503** the store is not fully configured yet for the request (for example, checkout without a warehouse location set).\n- JSON endpoints (`/api`, `/admin/api`) never redirect: without a valid login they answer 401, and without the permission 403, whatever the method. Server-rendered page requests are redirected (302) to the login page, unless they send an `Authorization` header, `Accept: application/json` without `text/html`, or `X-Requested-With: XMLHttpRequest`, which get the same 401 or 403 as the JSON endpoints. FileManager answers 401 when the bearer secret is missing or wrong.\n- The storefront is server-rendered. The few page routes that act as read endpoints (catalog, articles, cart, flagged orders, payment and OAuth redirects) are documented with `text/html` or redirect responses; the other pages are not part of the API.\n- JSON endpoints are plural resources under `/api` (storefront) and `/admin/api` (admin). The HTTP method states the action: `POST` creates, `PUT` and `PATCH` change, `DELETE` removes, and `GET` does not change business state. Anonymous search popularity counters are incidental telemetry. Payment-gateway and OAuth callbacks keep the URLs their providers call.\n- Trash lifecycle of admin resources: `DELETE /{id}` moves a record to the trash, `POST /{id}/restore` restores it and `DELETE /{id}?permanent=true` deletes it for good. The bulk variants take `{ \"ids\": [...] }` on the collection: `POST /trash`, `POST /restore` and `DELETE /`.\n\n### Optional modules\nEach store switches optional modules on or off with `FEATURE_*` environment variables (see the OpenEcom README). An endpoint of a switched-off module answers **404** like a route that does not exist: chat (`/api/chat-rooms`, `/admin/api/chat-rooms`), AI chat helpers, flagged orders, recommendation jobs, blog (`/api/articles`, `/api/article-categories`, `/admin/api/articles`, `/admin/api/article-categories`), wishlist, compare, reviews (`/api/reviews`, `/admin/api/reviews`), coupons (`/api/coupon-checks`, `/admin/api/coupons`; checkout then refuses a coupon with 400) and loyalty points (checkout ignores `usePoint`).\n\n### Real-time chat (Socket.IO, same origin as the Web app)\nConnect with the auth cookie and `auth: { role: \"user\" | \"admin\", roomId? }`.\n- Client to server: `CLIENT_SEND_MESSAGE`, `CLIENT_TYPING`, `CLIENT_OPEN_CHAT`, `CLIENT_DELETE_MESSAGE`, `ADMIN_OPEN_CHAT`, `ADMIN_TYPING`, `ADMIN_DELETE_ROOM`.\n- Server to client: `SERVER_SEND_MESSAGE`, `SERVER_SEND_STATUS`, `SERVER_MESSAGE_DELIVERED`, `SERVER_DELETE_MESSAGE`, `SERVER_DELETE_ROOM`, `SERVER_ROOM_ASSIGNED`, `SERVER_SEND_CLIENT_TYPING`, `SERVER_SEND_ADMIN_TYPING`, `SERVER_CLIENT_READ`, `SERVER_ADMIN_READ`, `SERVER_ADMIN_STATUS`, `USER_STATUS_ONLINE`, `LIST_USER_ONLINE`."
+    "description": "Documentation of every API endpoint of the OpenEcom web application (port 3000) and the FileManager microservice (port 4000). Server-rendered HTML pages are out of scope, apart from the few read-only ones described under Response conventions.\n\n### Base URLs\n- Web application (production): `https://openecom.vietops.vn`\n- Web application (local): `http://localhost:3000`\n- FileManager microservice: `http://localhost:4000` (operations under `/files` and `/folders` are served only there)\n\n### Authentication\n- **Customer** and **admin** JSON endpoints (`/api`, `/admin/api`) accept either the HTTP-only cookie (`tokenUser`, `tokenAdmin`), which browsers use, or `Authorization: Bearer <accessToken>`, which API clients use. The login endpoints return `accessToken` in the body and set the cookie; a request that carries an `Authorization` header is authenticated by it alone and its cookies are ignored. The token lasts one day (`expiresIn` says how long); there is no refresh for Bearer clients, so log in again on 401.\n- **FileManager** `/files` and `/folders` endpoints use `Authorization: Bearer <FILE_MANAGER_SECRET>`. `/media` is public. Use a random secret of at least 32 characters; repeated wrong secrets from one address are answered with HTTP 429.\n- Admin endpoints also check a permission (shown on each operation). Every admin write is recorded in the admin activity log.\n\n### Trying requests\nThe Web application serves this documentation itself at `/api-docs/`, which is the place to try customer and admin endpoints: log in through the login endpoint (the cookie is then sent automatically), or paste the returned `accessToken` under \"Authorize\". The Web application sends CORS headers on non-admin routes, so the Vercel copy can reach storefront endpoints with a Bearer token; admin endpoints skip CORS on purpose, so try those from this same-origin copy instead. The FileManager bearer endpoints also work from the Vercel copy when FileManager lists its origin in `FILE_MANAGER_CORS_ORIGINS`.\n\n### Response conventions\n- A successful JSON response has HTTP 200 and `{ \"code\": \"success\", \"message\": \"...\", ...data }`.\n- An error has the matching HTTP status and `{ \"code\": \"error\", \"message\": \"...\" }`: **400** invalid request, **401** not logged in, **403** no permission or not allowed, **404** record not found, **409** conflict with the current state (duplicate value, missing stock, a change that is not allowed), **429** too many attempts (see `Retry-After`), **500** unexpected failure, **502** a service the application depends on (FileManager, email, the shipping carrier) failed, and **503** the store is not fully configured yet for the request (for example, checkout without a warehouse location set).\n- JSON endpoints (`/api`, `/admin/api`) never redirect: without a valid login they answer 401, and without the permission 403, whatever the method. Server-rendered page requests are redirected (302) to the login page, unless they send an `Authorization` header, `Accept: application/json` without `text/html`, or `X-Requested-With: XMLHttpRequest`, which get the same 401 or 403 as the JSON endpoints. FileManager answers 401 when the bearer secret is missing or wrong.\n- The storefront is server-rendered. The few page routes that act as read endpoints (catalog, articles, cart, flagged orders, payment and OAuth redirects) are documented with `text/html` or redirect responses; the other pages are not part of the API.\n- JSON endpoints are plural resources under `/api` (storefront) and `/admin/api` (admin). The HTTP method states the action: `POST` creates, `PUT` and `PATCH` change, `DELETE` removes, and `GET` does not change business state. Anonymous search popularity counters are incidental telemetry. Payment-gateway and OAuth callbacks keep the URLs their providers call.\n- Trash lifecycle of admin resources: `DELETE /{id}` moves a record to the trash, `POST /{id}/restore` restores it and `DELETE /{id}?permanent=true` deletes it for good. The bulk variants take `{ \"ids\": [...] }` on the collection: `POST /trash`, `POST /restore` and `DELETE /`.\n\n### Optional modules\nEach store switches optional modules on or off with `FEATURE_*` environment variables (see the OpenEcom README). An endpoint of a switched-off module answers **404** like a route that does not exist: chat (`/api/chat-rooms`, `/admin/api/chat-rooms`), AI chat helpers, flagged orders, recommendation jobs, blog (`/api/articles`, `/api/article-categories`, `/admin/api/articles`, `/admin/api/article-categories`), wishlist, compare, reviews (`/api/reviews`, `/admin/api/reviews`), coupons (`/api/coupon-checks`, `/admin/api/coupons`; checkout then refuses a coupon with 400) and loyalty points (checkout ignores `usePoint`).\n\n### Real-time chat (Socket.IO, same origin as the Web app)\nConnect with the auth cookie and `auth: { role: \"user\" | \"admin\", roomId? }`.\n- Client to server: `CLIENT_SEND_MESSAGE`, `CLIENT_TYPING`, `CLIENT_OPEN_CHAT`, `CLIENT_DELETE_MESSAGE`, `ADMIN_OPEN_CHAT`, `ADMIN_TYPING`, `ADMIN_DELETE_ROOM`.\n- Server to client: `SERVER_SEND_MESSAGE`, `SERVER_SEND_STATUS`, `SERVER_MESSAGE_DELIVERED`, `SERVER_DELETE_MESSAGE`, `SERVER_DELETE_ROOM`, `SERVER_ROOM_ASSIGNED`, `SERVER_SEND_CLIENT_TYPING`, `SERVER_SEND_ADMIN_TYPING`, `SERVER_CLIENT_READ`, `SERVER_ADMIN_READ`, `SERVER_ADMIN_STATUS`, `USER_STATUS_ONLINE`, `LIST_USER_ONLINE`."
   },
   "servers": [
     {
+      "url": "https://openecom.vietops.vn",
+      "description": "Production server"
+    },
+    {
       "url": "http://localhost:3000",
-      "description": "OpenEcom Web application (local)"
+      "description": "Development server (local)"
     }
   ],
   "tags": [
@@ -6526,6 +6530,9 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/ServerError"
           }
@@ -6560,6 +6567,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "$ref": "#/components/responses/ServerError"
@@ -7323,6 +7333,9 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
           "500": {
             "$ref": "#/components/responses/ServerError"
           }
@@ -7871,6 +7884,9 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
           "500": {
             "$ref": "#/components/responses/ServerError"
           }
@@ -7931,11 +7947,12 @@
           "Client Products"
         ],
         "summary": "Realtime auto-complete search suggestions",
+        "description": "An omitted or blank keyword returns an empty list. Keywords are trimmed and limited to the first 100 characters.",
         "parameters": [
           {
             "name": "keyword",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -7989,6 +8006,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "$ref": "#/components/responses/ServerError"
@@ -8239,7 +8259,7 @@
           "Client Auth"
         ],
         "summary": "Customer sign out",
-        "description": "Ends the session, clears the auth cookies and revokes the refresh token. State-changing, so it is POST only.",
+        "description": "Ends the session, clears the auth cookies and revokes the refresh token. Uses DELETE; GET only reads the session state.",
         "responses": {
           "200": {
             "$ref": "#/components/responses/StandardResult"
@@ -8252,14 +8272,23 @@
         "tags": [
           "Client Chat"
         ],
-        "summary": "Verify or create support chat session",
+        "summary": "Check whether the customer is signed in",
+        "description": "Read-only session check. Returns ok as false for anonymous requests and true for an authenticated customer; it does not create a chat room.",
         "responses": {
           "200": {
-            "description": "Session data.",
+            "description": "Customer authentication state.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StandardResponse"
+                  "type": "object",
+                  "required": [
+                    "ok"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
                 }
               }
             }
@@ -8369,8 +8398,11 @@
         ],
         "summary": "Initiate Facebook OAuth2 authentication flow",
         "responses": {
-          "200": {
-            "$ref": "#/components/responses/HtmlPage"
+          "302": {
+            "description": "Redirects to the provider authorization page, or to /auth/login when the provider is not configured."
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         },
         "operationId": "getAuthFacebook",
@@ -8415,8 +8447,11 @@
         ],
         "summary": "Initiate Google OAuth2 authentication flow",
         "responses": {
-          "200": {
-            "$ref": "#/components/responses/HtmlPage"
+          "302": {
+            "description": "Redirects to the provider authorization page, or to /auth/login when the provider is not configured."
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         },
         "operationId": "getAuthGoogle",

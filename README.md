@@ -31,7 +31,7 @@ The spec states these decisions explicitly so readers don't have to infer them f
 - **REST Level 2.** JSON endpoints are plural resources under `/api` (storefront) and `/admin/api` (admin), and the HTTP method states the action: `POST` creates, `PUT`/`PATCH` change, `DELETE` removes, and `GET` does not change business state. Anonymous search popularity counters are incidental telemetry; the audit exempts only that named helper. Payment and OAuth callbacks keep the URLs their providers call.
 - **Response convention.** Success is HTTP 200 with `{ "code": "success", ... }`. Errors use the matching status (400/401/403/404/409/429/500/502/503) with `{ "code": "error", "message": "..." }`. JSON endpoints never redirect: an unauthenticated or unauthorized request gets 401/403 whatever the method, and only server-rendered pages redirect to login.
 - **Auth.** Browsers use the `tokenUser`/`tokenAdmin` HTTP-only cookies. API clients use `Authorization: Bearer <accessToken>`, which the login endpoints return. A request carrying that header is authenticated by the header alone. FileManager's `/files` and `/folders` use `Authorization: Bearer <FILE_MANAGER_SECRET>`.
-- **Try it out.** The `servers` entry is `http://localhost:3000` because neither service is deployed publicly yet, so "Try it out" only reaches a copy of OpenEcom you have running. The Web app sends CORS headers on non-admin routes, so the Vercel copy can reach a local storefront with a Bearer token: log in, then paste the returned `accessToken` under "Authorize". Admin endpoints skip CORS on purpose, so try those from the same-origin copy at `/api-docs/`, where the browser sends the login cookie automatically.
+- **Try it out.** Production `https://openecom.vietops.vn` is the default server; `http://localhost:3000` remains available for local development. The Vercel copy can reach storefront endpoints with a Bearer token: log in, then paste the returned `accessToken` under "Authorize". Admin endpoints skip CORS on purpose, so try those from the same-origin copy at `https://openecom.vietops.vn/api-docs/`, where the browser sends the login cookie automatically. FileManager stays private and its operation-specific local server is unchanged. Use a disposable environment for mutations; production requests affect real records.
 - **Verified, not just written.** `yarn verify` diffs the spec against the OpenEcom source: routes, required auth, Joi constraints, upload limits, permissions, rate limits, and the error statuses each operation can return. `yarn contract:status` boots both apps on a throwaway database and checks the real HTTP status of requests that should fail.
 - **Real-time chat.** Socket.IO isn't a REST operation, so it has no tag to browse. The event names and connection details are in the spec's top-level description instead.
 
@@ -71,8 +71,10 @@ yarn verify           # compare the spec against the OpenEcom source; fails on a
 yarn sync-statuses    # add error statuses the source can return but an operation doesn't list yet
 yarn contract:setup   # once: install the contract-test dependencies and Schemathesis
 yarn contract:status  # real HTTP statuses, against a throwaway database
-yarn contract         # Schemathesis: generated requests for every operation (slow)
+yarn contract         # Schemathesis: generated requests across Web and FileManager (slow)
 ```
+
+The contract suites use disposable local MongoDB and filesystem fixtures. The generated-request runner preserves fixture authentication and validates redirects without following them to external providers. It excludes session-ending and provider-dependent/heavy operations listed in `contract/run.js`; the status suite separately covers login, permissions, CRUD and session termination. Passing these checks does not certify real payment, email, shipping or OAuth-provider success paths.
 
 ## Repository layout
 

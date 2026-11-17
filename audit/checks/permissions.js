@@ -1,7 +1,7 @@
 const fs = require("fs");
 const deriveStatuses = require("../derive-statuses");
 
-const RATE_LIMITER = /rateLimit|Limiter|limiter/i;
+const isRateLimited = require("../rate-limits");
 
 module.exports = {
   name: "permissions and rate limits named in the descriptions match the routes",
@@ -36,7 +36,7 @@ module.exports = {
       const statuses = derived.get(`${route.method} ${route.path}`);
       if (statuses && !statuses.has(403) && codes.includes("403")) problems.push(`${label}: documents 403 but nothing in the source can answer it`);
 
-      const limited = RATE_LIMITER.test(route.args);
+      const limited = isRateLimited(context, route);
       const documentedLimit = /rate limit/i.test(text) || codes.includes("429");
       if (limited !== documentedLimit) problems.push(`${label}: rate limiting is ${limited ? "applied" : "not applied"} in the source but ${documentedLimit ? "documented" : "not documented"}`);
     }

@@ -9,7 +9,8 @@ info:
     Documentation of every API endpoint of the OpenEcom web application (port 3000) and the FileManager microservice (port 4000). Server-rendered HTML pages are out of scope, apart from the few read-only ones described under Response conventions.
 
     ### Base URLs
-    - Web application: `http://localhost:3000`
+    - Web application (production): `https://openecom.vietops.vn`
+    - Web application (local): `http://localhost:3000`
     - FileManager microservice: `http://localhost:4000` (operations under `/files` and `/folders` are served only there)
 
     ### Authentication
@@ -36,8 +37,10 @@ info:
     - Client to server: `CLIENT_SEND_MESSAGE`, `CLIENT_TYPING`, `CLIENT_OPEN_CHAT`, `CLIENT_DELETE_MESSAGE`, `ADMIN_OPEN_CHAT`, `ADMIN_TYPING`, `ADMIN_DELETE_ROOM`.
     - Server to client: `SERVER_SEND_MESSAGE`, `SERVER_SEND_STATUS`, `SERVER_MESSAGE_DELIVERED`, `SERVER_DELETE_MESSAGE`, `SERVER_DELETE_ROOM`, `SERVER_ROOM_ASSIGNED`, `SERVER_SEND_CLIENT_TYPING`, `SERVER_SEND_ADMIN_TYPING`, `SERVER_CLIENT_READ`, `SERVER_ADMIN_READ`, `SERVER_ADMIN_STATUS`, `USER_STATUS_ONLINE`, `LIST_USER_ONLINE`.
 servers:
+  - url: https://openecom.vietops.vn
+    description: Production server
   - url: http://localhost:3000
-    description: OpenEcom Web application (local)
+    description: Development server (local)
 tags:
   - name: Payment & Logistics (VNPAY, ZaloPay, GoShip)
     description: Payment gateway integrations (VNPAY, ZaloPay), webhooks, and GoShip automated courier rates
@@ -4111,6 +4114,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/ServerError'
       operationId: postApiArticleCategoriesBySlugViews
@@ -4134,6 +4139,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/ServerError'
       operationId: postApiArticlesBySlugViews
@@ -4617,6 +4624,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
       security:
@@ -4978,6 +4987,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/ServerError'
       operationId: postApiProductCategoriesBySlugViews
@@ -5016,10 +5027,11 @@ paths:
       tags:
         - Client Products
       summary: Realtime auto-complete search suggestions
+      description: An omitted or blank keyword returns an empty list. Keywords are trimmed and limited to the first 100 characters.
       parameters:
         - name: keyword
           in: query
-          required: true
+          required: false
           schema:
             type: string
       responses:
@@ -5054,6 +5066,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/ServerError'
       operationId: postApiProductsBySlugViews
@@ -5214,7 +5228,7 @@ paths:
       tags:
         - Client Auth
       summary: Customer sign out
-      description: Ends the session, clears the auth cookies and revokes the refresh token. State-changing, so it is POST only.
+      description: Ends the session, clears the auth cookies and revokes the refresh token. Uses DELETE; GET only reads the session state.
       responses:
         '200':
           $ref: '#/components/responses/StandardResult'
@@ -5223,14 +5237,19 @@ paths:
     get:
       tags:
         - Client Chat
-      summary: Verify or create support chat session
+      summary: Check whether the customer is signed in
+      description: Read-only session check. Returns ok as false for anonymous requests and true for an authenticated customer; it does not create a chat room.
       responses:
         '200':
-          description: Session data.
+          description: Customer authentication state.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StandardResponse'
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
       operationId: getApiSessionsCurrent
       security: []
   /api/wishlist/lookup:
@@ -5298,8 +5317,10 @@ paths:
         - Client Auth
       summary: Initiate Facebook OAuth2 authentication flow
       responses:
-        '200':
-          $ref: '#/components/responses/HtmlPage'
+        '302':
+          description: Redirects to the provider authorization page, or to /auth/login when the provider is not configured.
+        '429':
+          $ref: '#/components/responses/RateLimited'
       operationId: getAuthFacebook
       security: []
   /auth/facebook/callback:
@@ -5327,8 +5348,10 @@ paths:
         - Client Auth
       summary: Initiate Google OAuth2 authentication flow
       responses:
-        '200':
-          $ref: '#/components/responses/HtmlPage'
+        '302':
+          description: Redirects to the provider authorization page, or to /auth/login when the provider is not configured.
+        '429':
+          $ref: '#/components/responses/RateLimited'
       operationId: getAuthGoogle
       security: []
   /auth/google/callback:

@@ -21,6 +21,7 @@ const buildEnv = ({ ecomDir, databaseUri, fileManagerSecret, webPort, fileManage
   return {
     ...env,
     NODE_ENV: "development",
+    ADMIN_PATH: "admin",
     PORT: String(webPort),
     DATABASE: databaseUri,
     JWT_SECRET: "contract-test-jwt-secret-0123456789abcdef0123456789abcdef",

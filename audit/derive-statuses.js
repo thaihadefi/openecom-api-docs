@@ -2,7 +2,7 @@
 // calls of its controller, and the statuses of every service function the controller reaches (three levels deep).
 const fs = require("fs");
 
-const RATE_LIMITER = /rateLimit|Limiter|limiter/i;
+const isRateLimited = require("./rate-limits");
 const MAX_DEPTH = 3;
 
 const permissionAliases = (context, routeFile) => {
@@ -69,7 +69,7 @@ module.exports = (context) => {
     // /admin/api) answer 401 on every method, matching the source's own isApiRequest check.
     const isJsonApiRoute = /^\/(admin\/)?api(\/|$)/.test(route.path);
     if (operation.security && operation.security.length) statuses.add(route.method === "get" && !isJsonApiRoute ? 302 : 401);
-    if (RATE_LIMITER.test(route.args)) statuses.add(429);
+    if (isRateLimited(context, route)) statuses.add(429);
     if (/[Vv]alidate\.|settingPatch/.test(route.args)) statuses.add(400);
     if (/\.(single|array|fields)\(/.test(route.args)) statuses.add(400);
     statusesInCode(context, route.text, route.controllerFile, MAX_DEPTH, new Set()).forEach((status) => statuses.add(status));

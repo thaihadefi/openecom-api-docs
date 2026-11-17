@@ -28,6 +28,9 @@ const CASES = (env) => {
     ["first category is created", "POST", "/admin/api/product-categories", json(env.adminCookie, categoryBody), 200],
     ["the same slug again conflicts", "POST", "/admin/api/product-categories", json(env.adminCookie, categoryBody), 409],
     ["unknown order", "PATCH", `/admin/api/orders/${missingId}`, json(env.adminCookie, { orderStatus: "pending", paymentStatus: "unpaid" }), 404],
+    ["multipart order updates are parsed", "PATCH", `/admin/api/orders/${missingId}`, form(env.adminCookie, { orderStatus: "pending", paymentStatus: "unpaid" }), 404],
+    ["order updates with an unsupported content type are rejected", "PATCH", `/admin/api/orders/${missingId}`, { headers: { cookie: env.adminCookie, "content-type": "text/plain" }, body: "not-json" }, 400],
+    ["order updates without a body are rejected", "PATCH", `/admin/api/orders/${missingId}`, { headers: { cookie: env.adminCookie } }, 400],
     ["invalid order status", "PATCH", `/admin/api/orders/${missingId}`, json(env.adminCookie, { orderStatus: "nope", paymentStatus: "unpaid" }), 400],
     ["admin API call without a login", "POST", "/admin/api/coupons", json(null, {}), 401],
     ["admin call without the permission", "POST", "/admin/api/coupons", json(env.limitedCookie, {}), 403],
@@ -41,8 +44,14 @@ const CASES = (env) => {
     ["reviewing without a login", "POST", "/api/reviews", json(null, {}), 401],
     ["reporting a review without a login", "POST", "/api/reviews/000000000000000000000000/reports", json(null, {}), 401],
     ["changing the password without a login", "PUT", "/api/customers/me/password", json(null, {}), 401],
-    ["placing an order without a login", "POST", "/api/orders", json(null, {}), 401],
+    ["guest order requests reach validation without requiring login", "POST", "/api/orders", json(null, {}), 400],
     ["chat messages without a login", "GET", "/api/chat-rooms/current/messages", {}, 401],
+    ["Google OAuth starts with a redirect", "GET", "/auth/google", {}, 302, env.webUrl, { redirect: true }],
+    ["Facebook OAuth starts with a redirect", "GET", "/auth/facebook", {}, 302, env.webUrl, { redirect: true }],
+    ["anonymous session state", "GET", "/api/sessions/current", {}, 200, env.webUrl, { signedOut: true }],
+    ["suggestions without a keyword", "GET", "/api/product-suggestions", {}, 200, env.webUrl, { emptyList: true }],
+    ["suggestions with a blank keyword", "GET", "/api/product-suggestions?keyword=%20", {}, 200, env.webUrl, { emptyList: true }],
+    ["default address that does not exist", "PUT", `/api/customers/me/addresses/${missingId}/default`, json(env.userCookie, {}), 404],
     ["the session of a signed-in customer", "GET", "/api/sessions/current", { headers: { cookie: env.userCookie } }, 200, env.webUrl, { signedIn: true }],
     ["a JSON GET without a login answers 401, not a redirect", "GET", "/admin/api/statistics/revenue-by-time", {}, 401],
     ["a JSON GET without the permission answers 403 JSON", "GET", "/admin/api/products/csv", { headers: { cookie: env.limitedCookie } }, 403],
@@ -58,6 +67,9 @@ const CASES = (env) => {
     ["chat room that does not exist", "GET", "/admin/api/chat-rooms/000000000000000000000000/messages", { headers: { cookie: env.adminCookie } }, 404],
     ["invalid date range", "GET", "/admin/api/statistics/revenue-by-time?from=2020-13-45&to=2020-01-01", { headers: { cookie: env.adminCookie } }, 400],
     ["missing date range", "GET", "/admin/api/statistics/revenue-by-time", { headers: { cookie: env.adminCookie } }, 400],
+    ["malformed multipart headers are a client error", "POST", "/admin/api/articles", { headers: { cookie: env.adminCookie, "content-type": "multipart/form-data; boundary=test" }, body: "--test\r\nbad header\r\n\r\nx\r\n--test--\r\n" }, 400],
+    ["a missing multipart boundary is a client error", "POST", "/admin/api/articles", { headers: { cookie: env.adminCookie, "content-type": "multipart/form-data" }, body: "broken" }, 400],
+    ["an incomplete multipart body is a client error", "POST", "/admin/api/articles", { headers: { cookie: env.adminCookie, "content-type": "multipart/form-data; boundary=test" }, body: "--test\r\nContent-Disposition: form-data; name=\"name\"\r\n\r\nunfinished" }, 400],
     ["FileManager rejects an invalid file name (through Web)", "PATCH", "/admin/api/files/name", json(env.adminCookie, { folder: "users", oldFileName: "a.png", newFileName: "bad/name.png" }), 400],
     ["FileManager: file not found (through Web)", "PATCH", "/admin/api/files/name", json(env.adminCookie, { folder: "users", oldFileName: "missing.png", newFileName: "other.png" }), 404],
     ["FileManager rejects a disallowed file type (through Web)", "POST", "/admin/api/files", form(env.adminCookie, {}, { name: "run.exe", content: "MZ" }), 400],
@@ -74,13 +86,36 @@ const CASES = (env) => {
   const env = await startEnvironment({ ecomDir });
   let failed = 0;
   try {
+    // Exercise every documented protected API without credentials in the disposable environment.
+    const spec = require("../openapi.json");
+    let protectedChecks = 0;
+    for (const [route, item] of Object.entries(spec.paths)) {
+      for (const [method, operation] of Object.entries(item)) {
+        if (!["get", "post", "put", "patch", "delete"].includes(method) || !operation.security?.length) continue;
+        const fileManager = operation.security.some((entry) => "FileManagerBearer" in entry);
+        if (!fileManager && !/^\/(admin\/)?api\//.test(route)) continue;
+        const resolved = route.replace(/\{[^}]+\}/g, "000000000000000000000000");
+        const response = await fetch(`${fileManager ? env.fileManagerUrl : env.webUrl}${resolved}`, {
+          method: method.toUpperCase(), redirect: "manual", headers: { "content-type": "application/json" },
+          ...(method === "get" ? {} : { body: "{}" }),
+        });
+        const body = await response.json();
+        const ok = response.status === 401 && body.code === "error";
+        protectedChecks++;
+        if (!ok) failed++;
+        console.log(`${ok ? "ok  " : "FAIL"} ${response.status} (want 401) ${method.toUpperCase()} ${route} rejects anonymous requests`);
+      }
+    }
+    console.log(`checked ${protectedChecks} protected operations without credentials`);
     for (const [label, method, route, init, expected, base = env.webUrl, options = {}] of CASES(env)) {
       const response = await fetch(`${base}${route}`, { method, redirect: "manual", ...init });
       const text = await response.text();
       let body = null;
       try { body = JSON.parse(text); } catch { /* not JSON */ }
-      const shapeOk = options.html
+      const shapeOk = options.redirect ? Boolean(response.headers.get("location")) : options.html
         ? /text\/html/.test(response.headers.get("content-type") || "")
+        : options.signedOut ? body && body.ok === false
+        : options.emptyList ? body && body.code === "success" && Array.isArray(body.list) && body.list.length === 0
         : options.signedIn ? body && body.ok === true
         : expected >= 400 ? body && body.code === "error" && typeof body.message === "string" : body && body.code === "success";
       const ok = response.status === expected && shapeOk;
