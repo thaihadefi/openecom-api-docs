@@ -6783,7 +6783,14 @@
           }
         ],
         "operationId": "getApiChatRoomsCurrentMessages",
-        "security": []
+        "security": [
+          {
+            "UserCookie": []
+          },
+          {
+            "UserBearer": []
+          }
+        ]
       }
     },
     "/api/chat-rooms/current/rating": {

@@ -4277,7 +4277,9 @@ paths:
           schema:
             type: integer
       operationId: getApiChatRoomsCurrentMessages
-      security: []
+      security:
+        - UserCookie: []
+        - UserBearer: []
   /api/chat-rooms/current/rating:
     put:
       tags:
